@@ -1,0 +1,7 @@
+library(rvest) #scrapping
+library(stringr)
+library(splitstackshape)
+library(tidyr)
+library(XML) #scrapping
+
+
