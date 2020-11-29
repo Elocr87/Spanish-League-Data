@@ -1,46 +1,54 @@
-library(rvest) #scrapping
+######################
+# Code works 29-11-20#
+######################
+
+#Used libraries
+library(rvest) #scraping
 library(stringr)
-library(splitstackshape)
-library(tidyr)
-library(XML) #scrapping
 
-setwd("C:\\Users\\XXX\\Documents\\Estadísticas\\España") 
+#Set working directory
 
-###############FUTBOLFANTASY################
+setwd("~~~")
 
-####GETTING MATCHES' URL
-url="http://www.futbolfantasy.com/laliga/calendario/2019"
-parsed<-htmlParse(url)
-links<-xpathSApply(parsed,path = "//a",xmlGetAttr,"href")
-links=matrix(links,ncol=1)
-links_partidos=t(as.data.frame(links[c(77:305)]))#selecting matches URL
+#Used Variables
+season="20-21"
+league="España"
 
-####CREATING DATA FRAMES
+#Initialize DF
 result1=data.frame()
-fecha1=data.frame()
-arbitro=data.frame()
-equipos2=data.frame()
-home=data.frame(c("Local","Visitante"))
-colnames(home)<-c()
-gol=data.frame() 
+date1=data.frame()
+referee=data.frame()
+teams2=data.frame()
+home_away=data.frame(c("Local","Visitante"))
+colnames(home_away)<-c()
+goal=data.frame()
 
-#STARTING URLs LOOP
-for(n in 1:nrow(links_partidos)){
+####Links for the spanish league calendar
+url="https://www.futbolfantasy.com/laliga/calendario/2021"
+url=read_html(url)
+
+links_matches=as.data.frame(html_nodes(url,".partido.terminado")%>% html_attr("href")) #Only finished games.
+
+#Loop for getting all information
+for(n in 1:nrow(links_matches)){
   
 tryCatch({  
-  url=as.character(links_partidos[n,1])
-  url
-  html <- read_html(url)#reading url
-  score<-html_nodes(html,".statsglobales") #selecting nodes
-  score<-html_text(score) #getting text
-  score
-c<-gsub("(\t|\n)"," ",score) #remove /t and /n
+  #Read and get all stats
+  url=as.character(links_matches[n,1])
+  
+  html <- read_html(url)
+  score<-html_nodes(html,".statsglobales") 
+  score<-html_text(score) 
+  
+#Remove \t and \n  
+c<-gsub("(\t|\n)"," ",score) 
+#Split strings
 c<-strsplit(as.character(c[[1]]),"                ")
 d<-data.frame()
 
 tryCatch({
-#loop for getting the stats  
   
+#loop for cleaning and getting the stats  
 for(i in 1:length(c[[1]])){
   z<-trimws(c[[1]][i], "left")
   z1<-strsplit(z,"     ")
@@ -64,86 +72,116 @@ d<-d[,-2]
 result<-data.frame(t(d))
 result=cbind(result,rbind(result[2,],result[1,]))
 result1=rbind(result1,result)
-rm(result)
 
-####DATE
+rm(result) #remove result
 
-fecha<-html_nodes(html,".fecha")
-fecha_partido<-html_text(fecha[1])
-fecha_partido<-gsub("(\t|\n)"," ",as.character(fecha_partido)) 
-fecha_partido<-gsub("h"," ",fecha_partido)
-fecha_partido<-gsub(",","",fecha_partido)
-fecha<-trimws(as.character(fecha_partido))
-fecha=sapply(as.data.frame(strsplit(fecha,split = " ")),as.character)
-fecha[2,1]<-as.numeric(gsub(" .", "", fecha[2,1]))
-fecha_2=cbind(fecha[2,1],fecha[3,1],fecha[6,1],fecha[8,1],fecha[11,1])
-rownames(fecha_2) <- c()
-fecha_2=rbind(fecha_2,fecha_2)
-fecha1=rbind(fecha1,fecha_2)
+####Dates
 
-####REFEREE
+date<-html_nodes(html,".fecha") 
+date_match<-html_text(date[1])
 
-arb<-html_nodes(html,".link") %>% html_text()
-arb<-gsub("(\t|\n)"," ",arb) 
-arb <- matrix(arb,ncol=1)
-arb=data.frame(arb[c(1:1)])
-arb=rbind(arb,arb)
-arbitro=rbind(arbitro,arb)
+#Remove characters
+date_match<-gsub("(\t|\n)"," ",as.character(date_match)) 
+date_match<-gsub("h"," ",date_match)
+date_match<-gsub(",","",date_match)
+
+#Trim start and finish space
+date<-trimws(as.character(date_match))
+
+#Split string and convert to character
+date=sapply(as.data.frame(strsplit(date,split = " ")),as.character)
+
+#Remove punctuation
+date[2,1]<-as.numeric(gsub(" .", "", date[2,1]))
+
+#Bind
+date_2=cbind(date[2,1],date[3,1],date[6,1],date[8,1],date[11,1])
+rownames(date_2) <- c()
+date_2=rbind(date_2,date_2)
+date1=rbind(date1,date_2)
+
+####Referee
+
+ref<-html_nodes(html,".link") %>% html_text()
+
+#Remove \t and \n  
+ref<-gsub("(\t|\n)"," ",ref) 
+ref <- matrix(ref,ncol=1)
+ref=data.frame(ref[c(1:1)])
+#Bind
+ref=rbind(ref,ref)
+referee=rbind(referee,ref)
   
-####TEAMS HOME & AWAY
-equipos<-html_nodes(html,".nombre")
-local<-as.character(html_text(equipos[2])) 
-visitante=as.character(html_text(equipos[3]))
-equipos1=as.data.frame(rbind(local,visitante))
-equipos3=rbind(visitante,local)
-equipos1=cbind(equipos1,equipos3)
-equipos2=rbind(equipos2,equipos1)
+####Home and away teams
 
-###GOALS
+teams<-html_nodes(html,".nombre") 
+
+#Extract the names
+home<-as.character(html_text(teams[2])) 
+away=as.character(html_text(teams[3]))
+
+#Bind
+teams1=as.data.frame(rbind(home,away))
+teams3=rbind(away,home)
+teams1=cbind(teams1,teams3)
+teams2=rbind(teams2,teams1)
+
+###Goals
 
 score<-html_nodes(html,".local.score")
-gol_local<-as.numeric(html_text(score[1])) 
+goal_home<-as.numeric(html_text(score[1])) 
 
 score<-html_nodes(html,".visitante.score") 
-gol_visitante<-as.numeric(html_text(score[1])) 
+goal_away<-as.numeric(html_text(score[1])) 
 
-gol1=rbind(gol_local,gol_visitante)
-gol2=rbind(gol_visitante,gol_local)
+#Bind
+goal1=rbind(goal_home,goal_away)
+goal2=rbind(goal_away,goal_home)
 
-gol4=rbind(gol_local-gol_visitante,gol_visitante-gol_local)
+goal4=rbind(goal_home-goal_away,goal_away-goal_home)
+goal3=cbind(goal1,goal2)
 
-###SETTING RESULT  
-gol3=cbind(gol1,gol2)
-if(gol3[1,1]>gol3[1,2]){
-  ganador=rbind("Victoria","Derrota")
-  gol3=cbind(gol3,ganador)
-}else if(gol3[1,1]==gol3[1,2]){
-  ganador=rbind("Empate","Empate")
-  gol3=cbind(gol3,ganador)
+#Add column based on the goals
+if(goal3[1,1]>goal3[1,2]){
+  winner=rbind("Victoria","Derrota")
+  goal3=cbind(goal3,winner)
+}else if(goal3[1,1]==goal3[1,2]){
+  winner=rbind("Empate","Empate")
+  goal3=cbind(goal3,winner)
 } else{
-  ganador=rbind("Derrota","Victoria")
-  gol3=cbind(gol3,ganador)
+  winner=rbind("Derrota","Victoria")
+  goal3=cbind(goal3,winner)
 }
 
-gol=rbind(gol,cbind(gol3,gol4))
+#Bind
 
-},  error=function(e){})}  
+goal=rbind(goal,cbind(goal3,goal4))
 
-result1=na.omit(result1) #in case of any NA row
-row.names(equipos2)=c()
-colnames(equipos2)=c()
-equipos2=cbind(home,equipos2) #bind to get home and away teams
+print(n)
 
-resultados=cbind("España","18-19",fecha1,arbitro,equipos2,gol,result1)
+},  error=function(e){})
+}  
 
-names(resultados)<-c("Liga","Temporada","Jornada","Dia_Semana","Mes","Año","Hora", "Arbitro", "Local-Vis","Equipos","Rival","Gol_Fav",
-                     "Gol_Cont","Resultado", "Dif.Goles","Tiros", "Tiros_Puerta","Centros","Centros_precisos", "Corners","Faltas", "Intercepciones","Robos", 
+#Delete rows in case of NA
+result1=na.omit(result1)
+
+#Rename columns
+row.names(teams2)=c()
+colnames(teams2)=c()
+teams2=cbind(home_away,teams2)
+
+#Bind in one df
+results=cbind(league,season,date1,referee,teams2,goal,result1)
+
+#Rename columns
+
+names(results)<-c("Liga","Temporada","Jornada","Dia_Semana","Mes","Año","Hora", "Arbitro", "Local_Vis","Equipo","Rival","Gol_Fav",
+                     "Gol_Cont","Resultado", "Dif_Goles","Tiros", "Tiros_Puerta","Centros","Centros_precisos", "Corners","Faltas", "Intercepciones","Robos", 
                      "Amarillas", "Rojas","Penaltis_Fav", "Tiros_Contra", "Tiros_Puerta_Contra","Centros_Contra","Centros_precisos_Contra", 
                      "Corners_Contra","Faltas_Contra", "Intercepciones_Contra","Robos_Contra","Amarillas_Contra", 
                      "Rojas_Contra","Penaltis_Contra")
-head(resultados)
+#Check DF
+tail(results)
 
-resultados[resultados$Arbitro=='Sergio Álvarez',][8]='Antonio Miguel Mateu Lahoz' #correcting referee
-
-
-write.csv(resultados,"España_18-19.csv",row.names=FALSE) 
+#Save DF
+write.csv(results,"20_21_Spain.csv",row.names=FALSE)
