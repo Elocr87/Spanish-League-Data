@@ -7,3 +7,4 @@ Getting football stats from different websites in order to analise it and visual
   - In case you want to extract from a differnt league:
     - First, check if it's on the website.
     - Second, change the league (Premier League 20/21): https://www.futbolfantasy.com/premier-league/calendario/21
+- Team_Stats.R: retrieve all teams statistics from the website https://resultados.as.com/resultados/futbol/primera/ranking/
